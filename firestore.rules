@@ -1,0 +1,62 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(data) {
+      return data.userId == request.auth.uid;
+    }
+
+    // Document id of a recipe: sha256 of "<uid>|<name>", with the name
+    // trimmed and lower-cased. One person + name always gets the same id, so
+    // a second copy (any letter case) cannot be created.
+    // Must match Recipe.keyFor() in lib/models/recipe.dart.
+    function recipeKey(data) {
+      return hashing.sha256(
+        request.auth.uid + '|' + data.name.trim().lower()
+      ).toHexString().lower();
+    }
+
+    function validRecipe(data, recipeId) {
+      return data.keys().hasAll(['userId', 'name', 'category', 'difficulty', 'cookTime', 'createdAt'])
+        && data.keys().hasOnly(['id', 'userId', 'name', 'category', 'difficulty', 'cookTime',
+                                'servings', 'favorite', 'notes', 'createdAt'])
+        && owns(data)
+        && data.name is string
+        && data.name.trim().size() > 0
+        && data.name.size() <= 80
+        && data.category in ['Breakfast', 'Lunch', 'Dinner', 'Dessert']
+        && data.difficulty in ['Easy', 'Medium', 'Hard']
+        && data.cookTime is int
+        && data.cookTime >= 1 && data.cookTime <= 600
+        && (!('servings' in data) || data.servings == null
+            || (data.servings is int && data.servings >= 1 && data.servings <= 20))
+        && (!('favorite' in data) || data.favorite is bool)
+        && (!('notes' in data) || data.notes == null
+            || (data.notes is string && data.notes.size() <= 300))
+        && data.createdAt is timestamp
+        && (!('id' in data) || data.id == recipeId)
+        && recipeId == recipeKey(data);
+    }
+
+    match /recipes/{recipeId} {
+      allow read: if signedIn() && owns(resource.data);
+
+      allow create: if signedIn() && validRecipe(request.resource.data, recipeId);
+
+      // Editing keeps the same createdAt. Saving a "new" recipe over an
+      // existing one (a duplicate name) brings a new createdAt and is
+      // refused here.
+      allow update: if signedIn()
+        && owns(resource.data)
+        && validRecipe(request.resource.data, recipeId)
+        && request.resource.data.createdAt == resource.data.createdAt;
+
+      allow delete: if signedIn() && owns(resource.data);
+    }
+  }
+}

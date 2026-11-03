@@ -1,0 +1,29 @@
+// PLACEHOLDER. Replaced by `flutterfire configure` (tools/firebase_setup.ps1).
+// ignore_for_file: type=lint
+import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+
+class DefaultFirebaseOptions {
+  static FirebaseOptions get currentPlatform {
+    if (kIsWeb) {
+      throw UnsupportedError('DefaultFirebaseOptions are not configured for web.');
+    }
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return android;
+      default:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions are not configured for this platform.',
+        );
+    }
+  }
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyAgaocLK_V-r77nKk_PSDoG8C_uq4F1H5E',
+    appId: '1:967824442057:android:aaf486e630c53038a7c318',
+    messagingSenderId: '967824442057',
+    projectId: 'recipebox-qe190126',
+    storageBucket: 'recipebox-qe190126.firebasestorage.app',
+  );
+}
